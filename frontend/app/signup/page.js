@@ -234,16 +234,6 @@ export default function SignupPage() {
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 bg-linear-to-r from-cyan-400 to-purple-500"></div>
           </button>
 
-          {/* Divider */}
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-700"></div>
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-[#1e293b] px-3 text-gray-500">or sign up with</span>
-            </div>
-          </div>      
-
           {/* Login option */}
           <div className="text-center mt-2">
             <p className="text-gray-400 text-sm">
