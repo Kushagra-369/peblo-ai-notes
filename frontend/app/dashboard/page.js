@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [notes, setNotes] = useState([]);
   const [selectedNote, setSelectedNote] = useState(null);
   const [aiResponse, setAiResponse] = useState(null);
@@ -16,6 +14,7 @@ export default function DashboardPage() {
   const [autoSaveTimer, setAutoSaveTimer] = useState(null);
   const [shareLink, setShareLink] = useState(null);
   const [activeView, setActiveView] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Load notes from localStorage on mount
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function DashboardPage() {
         createdAt: new Date(note.createdAt)
       })));
     } else {
-      // Sample initial data
       const initialNotes = [
         {
           id: "1",
@@ -66,29 +64,23 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Save to localStorage helper
   const saveToLocalStorage = (notesToSave) => {
     localStorage.setItem("peblo-notes", JSON.stringify(notesToSave));
   };
 
-  // Auto-save note content
   const handleNoteEdit = (note, newContent) => {
     const updatedNote = { ...note, content: newContent, updatedAt: new Date() };
-    
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    
     const timer = setTimeout(() => {
       const updatedNotes = notes.map(n => n.id === note.id ? updatedNote : n);
       setNotes(updatedNotes);
       saveToLocalStorage(updatedNotes);
       if (editingNote) setEditingNote(updatedNote);
     }, 1000);
-    
     setAutoSaveTimer(timer);
     setEditingNote(updatedNote);
   };
 
-  // Create new note
   const createNewNote = () => {
     const newNote = {
       id: Date.now().toString(),
@@ -103,9 +95,9 @@ export default function DashboardPage() {
     setNotes([newNote, ...notes]);
     saveToLocalStorage([newNote, ...notes]);
     setEditingNote(newNote);
+    setSidebarOpen(false);
   };
 
-  // Archive/Unarchive note
   const toggleArchive = (noteId) => {
     const updatedNotes = notes.map(note => 
       note.id === noteId ? { ...note, isArchived: !note.isArchived } : note
@@ -114,7 +106,6 @@ export default function DashboardPage() {
     saveToLocalStorage(updatedNotes);
   };
 
-  // Delete note
   const deleteNote = (noteId) => {
     const updatedNotes = notes.filter(note => note.id !== noteId);
     setNotes(updatedNotes);
@@ -123,7 +114,6 @@ export default function DashboardPage() {
     if (editingNote?.id === noteId) setEditingNote(null);
   };
 
-  // Update note title
   const updateNoteTitle = (noteId, newTitle) => {
     const updatedNotes = notes.map(note =>
       note.id === noteId ? { ...note, title: newTitle, updatedAt: new Date() } : note
@@ -132,7 +122,6 @@ export default function DashboardPage() {
     saveToLocalStorage(updatedNotes);
   };
 
-  // Add tag to note
   const addTag = (noteId, tag) => {
     if (!tag.trim()) return;
     const updatedNotes = notes.map(note =>
@@ -144,7 +133,6 @@ export default function DashboardPage() {
     saveToLocalStorage(updatedNotes);
   };
 
-  // Remove tag from note
   const removeTag = (noteId, tagToRemove) => {
     const updatedNotes = notes.map(note =>
       note.id === noteId
@@ -155,7 +143,6 @@ export default function DashboardPage() {
     saveToLocalStorage(updatedNotes);
   };
 
-  // Generate share link
   const generateShareLink = (note) => {
     const shareId = note.shareId || Math.random().toString(36).substring(7);
     if (!note.shareId) {
@@ -171,12 +158,9 @@ export default function DashboardPage() {
     setTimeout(() => setShareLink(null), 3000);
   };
 
-  // AI Generation
   const generateAIInsights = async (note) => {
     setLoadingAI(true);
     setSelectedNote(note);
-    
-    // Simulate AI API call
     setTimeout(() => {
       const mockAIResponse = {
         summary: `📝 ${note.content.substring(0, 150)}... This note covers key aspects of ${note.title.toLowerCase()}. The main focus areas include implementation strategies and best practices.`,
@@ -195,7 +179,6 @@ export default function DashboardPage() {
     }, 1500);
   };
 
-  // Filter notes
   const filteredNotes = notes.filter(note => {
     const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           note.content.toLowerCase().includes(searchTerm.toLowerCase());
@@ -204,13 +187,9 @@ export default function DashboardPage() {
     return matchesSearch && matchesTag && matchesArchive;
   });
 
-  // Sort notes
   const sortedNotes = [...filteredNotes].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-
-  // Get all unique tags
   const allTags = Array.from(new Set(notes.flatMap(note => note.tags)));
 
-  // Stats
   const stats = {
     totalNotes: notes.filter(n => !n.isArchived).length,
     archivedNotes: notes.filter(n => n.isArchived).length,
@@ -228,316 +207,360 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-[#0f172a] via-[#111827] to-[#0f1222] text-white flex">
-
-      {/* SIDEBAR */}
-      <aside className="hidden md:flex w-72 bg-[#111827]/80 backdrop-blur-xl border-r border-gray-800 p-6 flex-col fixed h-full overflow-y-auto">
-        <h1 className="text-3xl font-bold bg-linear-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-10">
-          Peblo AI
-        </h1>
-
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Mobile Menu Button - Right Side */}
+      <div className="lg:hidden fixed top-4 right-4 z-50">
         <button
-          onClick={createNewNote}
-          className="bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition text-white py-3 rounded-xl font-semibold mb-8 shadow-lg shadow-cyan-500/25"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="w-12 h-12 bg-slate-800 rounded-full shadow-lg flex items-center justify-center hover:bg-slate-700 transition-all duration-300 border border-slate-700"
         >
-          + Create Note
+          {!sidebarOpen ? (
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
         </button>
+      </div>
 
-        <nav className="flex flex-col gap-2">
-          <button
-            onClick={() => setActiveView("dashboard")}
-            className={`text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
-              activeView === "dashboard"
-                ? "bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/50"
-                : "hover:bg-gray-800/50 text-gray-300"
-            }`}
-          >
-            <span>📊</span>
-            <span>Dashboard</span>
-          </button>
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-all duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-          <button
-            onClick={() => setActiveView("insights")}
-            className={`text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
-              activeView === "insights"
-                ? "bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/50"
-                : "hover:bg-gray-800/50 text-gray-300"
-            }`}
-          >
-            <span>🤖</span>
-            <span>AI Insights</span>
-          </button>
-        </nav>
-
-        <div className="mt-8 pt-8 border-t border-gray-800">
-          <h3 className="text-sm text-gray-500 mb-3">Filter by Tag</h3>
-          <div className="flex flex-wrap gap-2">
+      {/* Sidebar */}
+      <aside className={`
+        fixed top-0 left-0 h-full bg-slate-900/95 backdrop-blur-xl border-r border-slate-700
+        transform transition-transform duration-300 ease-in-out z-40 w-80 overflow-y-auto
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+      `}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-2xl font-bold bg-linear-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              Peblo AI
+            </h1>
             <button
-              onClick={() => setSelectedTag("")}
-              className={`px-3 py-1 rounded-full text-sm transition ${
-                !selectedTag ? "bg-cyan-500 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-gray-400 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <button
+            onClick={createNewNote}
+            className="w-full bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all duration-300 text-white py-3 rounded-xl font-semibold mb-8 shadow-lg shadow-cyan-500/25"
+          >
+            + Create Note
+          </button>
+
+          <nav className="space-y-2">
+            <button
+              onClick={() => {
+                setActiveView("dashboard");
+                setSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                activeView === "dashboard"
+                  ? "bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/50"
+                  : "hover:bg-slate-800 text-gray-300 hover:text-white"
               }`}
             >
-              All
+              <span className="text-xl">📊</span>
+              <span>Dashboard</span>
             </button>
-            {allTags.map(tag => (
+
+            <button
+              onClick={() => {
+                setActiveView("insights");
+                setSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                activeView === "insights"
+                  ? "bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/50"
+                  : "hover:bg-slate-800 text-gray-300 hover:text-white"
+              }`}
+            >
+              <span className="text-xl">🤖</span>
+              <span>AI Insights</span>
+            </button>
+          </nav>
+
+          <div className="mt-8 pt-8 border-t border-slate-700">
+            <h3 className="text-sm text-gray-500 mb-3">Filter by Tag</h3>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={tag}
-                onClick={() => setSelectedTag(tag)}
-                className={`px-3 py-1 rounded-full text-sm transition ${
-                  selectedTag === tag ? "bg-cyan-500 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                onClick={() => setSelectedTag("")}
+                className={`px-3 py-1 rounded-full text-sm transition-all duration-200 ${
+                  !selectedTag ? "bg-cyan-500 text-white" : "bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white"
                 }`}
               >
-                #{tag}
+                All
               </button>
-            ))}
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className={`px-3 py-1 rounded-full text-sm transition-all duration-200 ${
+                    selectedTag === tag ? "bg-cyan-500 text-white" : "bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white"
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="mt-6">
-          <button
-            onClick={() => setShowArchived(!showArchived)}
-            className={`w-full text-left px-4 py-3 rounded-xl transition flex items-center gap-3 ${
-              showArchived ? "bg-cyan-500/20 text-cyan-400" : "hover:bg-gray-800/50 text-gray-300"
-            }`}
-          >
-            <span>📦</span>
-            <span>{showArchived ? "Show Active Notes" : "View Archived"}</span>
-          </button>
+          <div className="mt-6">
+            <button
+              onClick={() => {
+                setShowArchived(!showArchived);
+                setSidebarOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 hover:bg-slate-800 text-gray-300 hover:text-white"
+            >
+              <span className="text-xl">📦</span>
+              <span>{showArchived ? "Show Active Notes" : "View Archived"}</span>
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <section className="flex-1 ml-0 md:ml-72 p-6 md:p-10 overflow-y-auto">
-        {activeView === "dashboard" ? (
-          <>
-            {/* HEADER */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-10">
-              <div>
-                <h1 className="text-4xl md:text-5xl font-bold bg-linear-to-r from-white to-cyan-200 bg-clip-text text-transparent">
+      {/* Main Content */}
+      <main className="lg:ml-80 min-h-screen">
+        <div className="p-4 md:p-6 lg:p-8">
+          {activeView === "dashboard" ? (
+            <>
+              {/* Header */}
+              <div className="mb-8">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-linear-to-r from-white to-cyan-200 bg-clip-text text-transparent">
                   Notes Workspace
                 </h1>
-                <p className="text-gray-400 mt-3 text-lg">
+                <p className="text-gray-400 mt-2 text-sm md:text-base">
                   {showArchived ? "Archived Notes" : "Active Notes"} • {sortedNotes.length} notes
                 </p>
               </div>
 
-              <div className="flex gap-4">
+              {/* Search Bar */}
+              <div className="mb-8">
                 <input
                   type="text"
-                  placeholder="🔍 Search notes..."
+                  placeholder="🔍 Search notes by title or content..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-[#1e293b] border border-gray-700 rounded-xl px-5 py-3 outline-none focus:border-cyan-500 transition w-64"
+                  className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl px-5 py-3 text-white outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all duration-200"
                 />
               </div>
-            </div>
 
-            {/* NOTES GRID */}
-            {sortedNotes.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="text-6xl mb-4">📝</div>
-                <h3 className="text-2xl font-bold mb-2">No notes found</h3>
-                <p className="text-gray-400">Create your first note to get started!</p>
-                <button
-                  onClick={createNewNote}
-                  className="mt-6 bg-linear-to-r from-cyan-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold"
-                >
-                  + Create Note
-                </button>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {sortedNotes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 hover:-translate-y-1 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/10 group"
+              {/* Notes Grid */}
+              {sortedNotes.length === 0 ? (
+                <div className="text-center py-12 md:py-20">
+                  <div className="text-5xl md:text-6xl mb-4">📝</div>
+                  <h3 className="text-xl md:text-2xl font-bold mb-2">No notes found</h3>
+                  <p className="text-gray-400 text-sm md:text-base">Create your first note to get started!</p>
+                  <button
+                    onClick={createNewNote}
+                    className="mt-6 bg-linear-to-r from-cyan-500 to-blue-600 text-white px-5 py-2.5 md:px-6 md:py-3 rounded-xl font-semibold text-sm md:text-base transition-all duration-200 hover:shadow-lg"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 px-3 py-1 rounded-full text-xs">
-                        {note.isPublic ? "🔗 Public" : "🔒 Private"}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {new Date(note.updatedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {editingNote?.id === note.id ? (
-                      <input
-                        type="text"
-                        value={editingNote.title}
-                        onChange={(e) => updateNoteTitle(note.id, e.target.value)}
-                        className="text-2xl font-bold mb-3 bg-transparent border-b border-gray-700 outline-none focus:border-cyan-500 w-full"
-                        autoFocus
-                      />
-                    ) : (
-                      <h3 
-                        className="text-2xl font-bold mb-3 cursor-pointer hover:text-cyan-400 transition"
-                        onClick={() => setEditingNote(note)}
-                      >
-                        {note.title}
-                      </h3>
-                    )}
-
-                    {editingNote?.id === note.id ? (
-                      <textarea
-                        value={editingNote.content}
-                        onChange={(e) => handleNoteEdit(note, e.target.value)}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-xl p-3 text-gray-300 outline-none focus:border-cyan-500 mb-4 min-h-37.5"
-                        placeholder="Start writing your note..."
-                      />
-                    ) : (
-                      <p className="text-gray-400 leading-7 mb-4 line-clamp-3">
-                        {note.content || "Click to edit..."}
-                      </p>
-                    )}
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {note.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="bg-gray-800 px-2 py-1 rounded-md text-xs flex items-center gap-1"
-                        >
-                          #{tag}
-                          <button
-                            onClick={() => removeTag(note.id, tag)}
-                            className="hover:text-red-400 ml-1"
-                          >
-                            ×
-                          </button>
+                    + Create Note
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                  {sortedNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6 hover:shadow-xl hover:shadow-cyan-500/10 hover:-translate-y-1 transition-all duration-300"
+                    >
+                      <div className="flex items-center justify-between mb-3 md:mb-4 flex-wrap gap-2">
+                        <span className="bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs">
+                          {note.isPublic ? "🔗 Public" : "🔒 Private"}
                         </span>
-                      ))}
-                      <input
-                        type="text"
-                        placeholder="+ Add tag"
-                        className="bg-gray-800/50 px-2 py-1 rounded-md text-xs outline-none focus:bg-gray-700 w-20"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            addTag(note.id, e.target.value);
-                            e.target.value = '';
-                          }
-                        }}
+                        <span className="text-gray-500 text-xs">
+                          {new Date(note.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {editingNote?.id === note.id ? (
+                        <input
+                          type="text"
+                          value={editingNote.title}
+                          onChange={(e) => updateNoteTitle(note.id, e.target.value)}
+                          className="text-xl md:text-2xl font-bold mb-3 bg-transparent border-b border-slate-600 outline-none focus:border-cyan-500 w-full text-white"
+                          autoFocus
+                        />
+                      ) : (
+                        <h3 
+                          className="text-xl md:text-2xl font-bold mb-3 cursor-pointer hover:text-cyan-400 transition-colors text-white wrap-break-words"
+                          onClick={() => setEditingNote(note)}
+                        >
+                          {note.title}
+                        </h3>
+                      )}
+
+                      {editingNote?.id === note.id ? (
+                        <textarea
+                          value={editingNote.content}
+                          onChange={(e) => handleNoteEdit(note, e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-gray-300 outline-none focus:border-cyan-500 mb-4 min-h-30 md:min-h-37.5 text-sm md:text-base"
+                          placeholder="Start writing your note..."
+                        />
+                      ) : (
+                        <p className="text-gray-400 leading-6 md:leading-7 mb-4 line-clamp-3 text-sm md:text-base">
+                          {note.content || "Click to edit..."}
+                        </p>
+                      )}
+
+                      {/* Tags */}
+                      <div className="flex flex-wrap gap-1.5 md:gap-2 mb-4">
+                        {note.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="bg-slate-700 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md text-xs flex items-center gap-1 text-gray-300"
+                          >
+                            #{tag}
+                            <button
+                              onClick={() => removeTag(note.id, tag)}
+                              className="hover:text-red-400 ml-1 transition-colors"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type="text"
+                          placeholder="+ Add tag"
+                          className="bg-slate-700/50 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md text-xs outline-none focus:bg-slate-600 w-16 md:w-20 text-gray-300 transition-all"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              addTag(note.id, e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => generateAIInsights(note)}
+                          className="bg-linear-to-r from-cyan-500 to-purple-500 text-white px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition-all"
+                        >
+                          🤖 AI Summary
+                        </button>
+                        <button
+                          onClick={() => toggleArchive(note.id)}
+                          className="border border-slate-600 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm hover:bg-slate-700 transition-all text-gray-300"
+                        >
+                          {note.isArchived ? "📤 Unarchive" : "📦 Archive"}
+                        </button>
+                        <button
+                          onClick={() => generateShareLink(note)}
+                          className="border border-slate-600 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm hover:bg-slate-700 transition-all text-gray-300"
+                        >
+                          🔗 Share
+                        </button>
+                        <button
+                          onClick={() => deleteNote(note.id)}
+                          className="border border-red-700/50 text-red-400 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm hover:bg-red-900/20 transition-all"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            // AI Insights View
+            <div>
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-linear-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2">
+                AI Productivity Insights
+              </h1>
+              <p className="text-gray-400 mb-6 md:mb-8 text-sm md:text-base">Your workspace analytics at a glance</p>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6">
+                  <div className="text-2xl md:text-3xl mb-2">📝</div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-cyan-400">{stats.totalNotes}</h3>
+                  <p className="text-gray-400 mt-1 text-sm md:text-base">Total Notes</p>
+                </div>
+
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6">
+                  <div className="text-2xl md:text-3xl mb-2">📦</div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-purple-400">{stats.archivedNotes}</h3>
+                  <p className="text-gray-400 mt-1 text-sm md:text-base">Archived Notes</p>
+                </div>
+
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6">
+                  <div className="text-2xl md:text-3xl mb-2">🏷️</div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-blue-400">{stats.totalTags}</h3>
+                  <p className="text-gray-400 mt-1 text-sm md:text-base">Unique Tags</p>
+                </div>
+
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6">
+                  <div className="text-2xl md:text-3xl mb-2">🔄</div>
+                  <h3 className="text-2xl md:text-3xl font-bold text-green-400">{stats.recentEdits}</h3>
+                  <p className="text-gray-400 mt-1 text-sm md:text-base">Recent Edits</p>
+                </div>
+              </div>
+
+              {/* Most Used Tags */}
+              <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6 mb-6 md:mb-8">
+                <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">🏷️ Most Used Tags</h2>
+                <div className="flex flex-wrap gap-2 md:gap-3">
+                  {stats.mostUsedTags.map(tag => (
+                    <span key={tag} className="bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 px-2 py-1 md:px-4 md:py-2 rounded-full text-xs md:text-sm">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weekly Activity */}
+              <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl md:rounded-2xl p-4 md:p-6 overflow-x-auto">
+                <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">📊 Weekly Activity</h2>
+                <div className="flex items-end gap-2 md:gap-4 h-48 md:h-64 min-w-75">
+                  {stats.weeklyActivity.map((day, idx) => (
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-1 md:gap-2">
+                      <div 
+                        className="w-full bg-linear-to-t from-cyan-500 to-purple-500 rounded-lg transition-all duration-500"
+                        style={{ height: `${Math.max(day.count * 30, 6)}px` }}
                       />
+                      <span className="text-xs text-gray-400">{day.day}</span>
+                      <span className="text-xs md:text-sm font-semibold text-white">{day.count}</span>
                     </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => generateAIInsights(note)}
-                        className="bg-linear-to-r from-cyan-500 to-purple-500 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:opacity-90 transition"
-                      >
-                        🤖 AI Summary
-                      </button>
-                      <button
-                        onClick={() => toggleArchive(note.id)}
-                        className="border border-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-800 transition"
-                      >
-                        {note.isArchived ? "📤 Unarchive" : "📦 Archive"}
-                      </button>
-                      <button
-                        onClick={() => generateShareLink(note)}
-                        className="border border-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-800 transition"
-                      >
-                        🔗 Share
-                      </button>
-                      <button
-                        onClick={() => deleteNote(note.id)}
-                        className="border border-red-700/50 text-red-400 px-3 py-1.5 rounded-lg text-sm hover:bg-red-900/20 transition"
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {shareLink && (
-              <div className="fixed bottom-6 right-6 bg-green-500 text-black px-6 py-3 rounded-xl font-semibold shadow-lg animate-bounce">
-                🔗 Share link copied!
-              </div>
-            )}
-          </>
-        ) : (
-          /* AI INSIGHTS DASHBOARD */
-          <div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-linear-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2">
-              AI Productivity Insights
-            </h1>
-            <p className="text-gray-400 mb-10">Your workspace analytics at a glance</p>
-
-            {/* Stats Grid */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <div className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
-                <div className="text-3xl mb-2">📝</div>
-                <h3 className="text-3xl font-bold text-cyan-400">{stats.totalNotes}</h3>
-                <p className="text-gray-400 mt-1 text-sm">Total Notes</p>
+                  ))}
+                </div>
               </div>
 
-              <div className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
-                <div className="text-3xl mb-2">📦</div>
-                <h3 className="text-3xl font-bold text-purple-400">{stats.archivedNotes}</h3>
-                <p className="text-gray-400 mt-1 text-sm">Archived Notes</p>
-              </div>
-
-              <div className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
-                <div className="text-3xl mb-2">🏷️</div>
-                <h3 className="text-3xl font-bold text-blue-400">{stats.totalTags}</h3>
-                <p className="text-gray-400 mt-1 text-sm">Unique Tags</p>
-              </div>
-
-              <div className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
-                <div className="text-3xl mb-2">🔄</div>
-                <h3 className="text-3xl font-bold text-green-400">{stats.recentEdits}</h3>
-                <p className="text-gray-400 mt-1 text-sm">Recent Edits</p>
+              {/* AI Usage Stats */}
+              <div className="mt-6 md:mt-8 bg-linear-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-xl md:rounded-2xl p-4 md:p-6">
+                <h2 className="text-xl md:text-2xl font-bold mb-2">🤖 AI Usage Statistics</h2>
+                <p className="text-gray-300 text-sm md:text-base">Total AI generations: {notes.filter(n => n.content.length > 50).length}</p>
+                <p className="text-gray-400 text-xs md:text-sm mt-2">AI helps you summarize, extract actions, and suggest titles for better productivity!</p>
               </div>
             </div>
+          )}
+        </div>
+      </main>
 
-            {/* Most Used Tags */}
-            <div className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 mb-6">
-              <h2 className="text-2xl font-bold mb-4">🏷️ Most Used Tags</h2>
-              <div className="flex flex-wrap gap-3">
-                {stats.mostUsedTags.map(tag => (
-                  <span key={tag} className="bg-linear-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 px-4 py-2 rounded-full text-sm">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Weekly Activity */}
-            <div className="bg-[#1e293b]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold mb-4">📊 Weekly Activity</h2>
-              <div className="flex items-end gap-4 h-48">
-                {stats.weeklyActivity.map((day, idx) => (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                    <div 
-                      className="w-full bg-linear-to-t from-cyan-500 to-purple-500 rounded-lg transition-all duration-500"
-                      style={{ height: `${Math.max(day.count * 30, 4)}px` }}
-                    />
-                    <span className="text-xs text-gray-400">{day.day}</span>
-                    <span className="text-sm font-semibold">{day.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* AI Usage Stats */}
-            <div className="mt-6 bg-linear-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-2xl p-6">
-              <h2 className="text-2xl font-bold mb-2">🤖 AI Usage Statistics</h2>
-              <p className="text-gray-300">Total AI generations: {notes.filter(n => n.content.length > 50).length}</p>
-              <p className="text-gray-400 text-sm mt-2">AI helps you summarize, extract actions, and suggest titles for better productivity!</p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* AI SUMMARY MODAL */}
+      {/* AI Summary Modal */}
       {selectedNote && aiResponse && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-[#1e293b] max-w-2xl w-full rounded-2xl border border-gray-700 p-8 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold bg-linear-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 max-w-2xl w-full rounded-xl md:rounded-2xl border border-slate-700 p-4 md:p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h2 className="text-xl md:text-2xl font-bold bg-linear-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
                 🤖 AI Analysis
               </h2>
               <button
@@ -545,23 +568,23 @@ export default function DashboardPage() {
                   setSelectedNote(null);
                   setAiResponse(null);
                 }}
-                className="text-3xl hover:text-red-400 transition"
+                className="text-2xl md:text-3xl hover:text-red-400 transition text-gray-400"
               >
                 ×
               </button>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-[#0f172a] rounded-xl p-5">
-                <h3 className="text-xl font-bold text-cyan-400 mb-3">📋 Summary</h3>
-                <p className="text-gray-300 leading-relaxed">{aiResponse.summary}</p>
+            <div className="space-y-4 md:space-y-6">
+              <div className="bg-slate-900 rounded-xl p-4 md:p-5">
+                <h3 className="text-lg md:text-xl font-bold text-cyan-400 mb-2 md:mb-3">📋 Summary</h3>
+                <p className="text-gray-300 leading-relaxed text-sm md:text-base">{aiResponse.summary}</p>
               </div>
 
-              <div className="bg-[#0f172a] rounded-xl p-5">
-                <h3 className="text-xl font-bold text-purple-400 mb-3">✅ Action Items</h3>
-                <ul className="space-y-2">
+              <div className="bg-slate-900 rounded-xl p-4 md:p-5">
+                <h3 className="text-lg md:text-xl font-bold text-purple-400 mb-2 md:mb-3">✅ Action Items</h3>
+                <ul className="space-y-1 md:space-y-2">
                   {aiResponse.action_items.map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-gray-300">
+                    <li key={idx} className="flex items-start gap-2 text-gray-300 text-sm md:text-base">
                       <span className="text-cyan-400">•</span>
                       {item}
                     </li>
@@ -569,9 +592,9 @@ export default function DashboardPage() {
                 </ul>
               </div>
 
-              <div className="bg-[#0f172a] rounded-xl p-5">
-                <h3 className="text-xl font-bold text-blue-400 mb-3">💡 Suggested Title</h3>
-                <p className="text-gray-300 text-lg font-semibold">{aiResponse.suggested_title}</p>
+              <div className="bg-slate-900 rounded-xl p-4 md:p-5">
+                <h3 className="text-lg md:text-xl font-bold text-blue-400 mb-2 md:mb-3">💡 Suggested Title</h3>
+                <p className="text-gray-300 text-base md:text-lg font-semibold">{aiResponse.suggested_title}</p>
               </div>
             </div>
 
@@ -583,7 +606,7 @@ export default function DashboardPage() {
                 setSelectedNote(null);
                 setAiResponse(null);
               }}
-              className="w-full mt-6 bg-linear-to-r from-cyan-500 to-purple-500 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition"
+              className="w-full mt-4 md:mt-6 bg-linear-to-r from-cyan-500 to-purple-500 text-white py-2.5 md:py-3 rounded-xl font-semibold hover:opacity-90 transition-all text-sm md:text-base"
             >
               Apply Suggested Title
             </button>
@@ -593,12 +616,18 @@ export default function DashboardPage() {
 
       {loadingAI && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-[#1e293b] rounded-2xl p-8 text-center">
-            <div className="animate-spin text-4xl mb-4">🤖</div>
-            <p className="text-gray-300">Generating AI insights...</p>
+          <div className="bg-slate-800 rounded-xl md:rounded-2xl p-6 md:p-8 text-center mx-4">
+            <div className="animate-spin text-3xl md:text-4xl mb-4">🤖</div>
+            <p className="text-gray-300 text-sm md:text-base">Generating AI insights...</p>
           </div>
         </div>
       )}
-    </main>
+
+      {shareLink && (
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 bg-green-500 text-black px-3 py-2 md:px-6 md:py-3 rounded-xl font-semibold shadow-lg animate-bounce z-50 text-sm md:text-base">
+          🔗 Share link copied!
+        </div>
+      )}
+    </div>
   );
 }
