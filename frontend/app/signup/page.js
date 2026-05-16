@@ -73,7 +73,7 @@ export default function SignupPage() {
       
       console.log("Sending payload to server:", payload); // Debug log
 
-      const response = await fetch("http://localhost:5000/signup", {
+      const response = await fetch("https://peblo-ai-notes.onrender.com/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
